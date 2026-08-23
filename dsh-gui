@@ -201,7 +201,6 @@ open_app_for_url() {
     if open -Ra "Google Chrome" 2>/dev/null; then
         open -na "Google Chrome" --args --app="$url"
         echo "dsh-gui: opened $url in a Chrome app window"
-        echo "dsh-gui: tip: Chrome ties an app's identity to one URL; install $url as a Chrome app (Chrome menu -> Install page as app…) and dsh-gui will open that app instead"
     else
         open "$url"
         echo "dsh-gui: opened $url in the default browser"

@@ -36,7 +36,7 @@ ln -s "$PWD/dsh-gui/dsh-gui" ~/.local/bin/dsh-gui   # 任何在 PATH 中的目�
 
 - **服务**：以 `nohup` 后台启动，日志写入 `~/.dsh/dsh-web.log`。
 - **隧道**：日志写入 `~/.dsh/dsh-tunnel-<target>.log`。若本地端口已有监听：匹配的已有隧道会被*复用*；其他占用者会被提示，脚本拒绝覆盖。
-- **应用窗口**：Chrome 把一个应用的身份绑定到唯一的 URL。dsh-gui 会扫描已安装的 Chrome 应用（`Chrome Apps.localized`），找到 URL 与目标一致的应用——例如本地 URL 对应的 *DeepSeek Harness*，或你为远程/隧道 URL 安装的应用——找到就以正式应用打开（独立 Dock 图标、多窗口归组）。否则回退为 Chrome `--app` 窗口，并给出提示：用 Chrome 菜单的"安装页面为应用…"把该 URL 一次性安装为应用，dsh-gui 之后会复用它。
+- **应用窗口**：Chrome 把一个应用的身份绑定到唯一的 URL。dsh-gui 会扫描已安装的 Chrome 应用（`Chrome Apps.localized`），找到 URL 与目标一致的应用并打开它（本地 URL 对应的 *DeepSeek Harness* 就是这样打开的）。其他 URL（如远程/隧道地址）以 Chrome `--app` 窗口打开（沉浸式窗口，不做独立应用注册）。若你日后手动把某个 URL 安装为 Chrome 应用，dsh-gui 会自动优先使用已安装的应用。
 - **结束进程**：先发 `SIGTERM`，最多等 5 秒，仍存活则升级为 `SIGKILL`。结束正在服务 GUI 端口的进程会断开其上的活动会话，脚本会事先警告。
 
 ## 环境变量

@@ -36,7 +36,7 @@ Unknown flags are forwarded to `dsh web` on a cold start (e.g. `dsh-gui --host 1
 
 - **Service**: started in the background with `nohup`; log goes to `~/.dsh/dsh-web.log`.
 - **Tunnels**: log goes to `~/.dsh/dsh-tunnel-<target>.log`. If the local port already has a listener, a matching existing tunnel is *reused*; any other listener is reported and the script refuses to shadow it.
-- **App window**: Chrome ties an app's identity to a single URL. dsh-gui scans the installed Chrome apps (`Chrome Apps.localized`) for one whose URL matches the target; when found — e.g. the *DeepSeek Harness* app for the local URL, or an app you installed for a remote/tunneled URL — it opens it as a proper app (own Dock tile, icon, multi-window grouping). Otherwise it falls back to a Chrome `--app` window and prints a hint: install that URL once as a Chrome app (Chrome menu → *Install page as app…*) to give it a permanent app identity that dsh-gui will reuse.
+- **App window**: Chrome ties an app's identity to a single URL. dsh-gui scans the installed Chrome apps (`Chrome Apps.localized`) for one whose URL matches the target and opens it (this is how the *DeepSeek Harness* app opens for the local URL). Any other URL — e.g. a remote/tunneled one — opens as a Chrome `--app` window (borderless, no separate app registration). If you ever install such a URL as a Chrome app manually, dsh-gui will prefer the installed app automatically.
 - **Killing**: sends `SIGTERM`, waits up to 5 s, then escalates to `SIGKILL`. Killing the process that serves the GUI port disconnects any live session on it; the script warns before doing so.
 
 ## Environment variables
