@@ -1,0 +1,325 @@
+#!/bin/sh
+# dsh-gui — manage the DeepSeek Harness web service, tunnels to it, and the Chrome app.
+#
+# Usage:
+#   dsh-gui              start the web service if needed, then open the Chrome app
+#   dsh-gui [flags]      unknown flags are forwarded to `dsh web` on a cold start
+#   dsh-gui --port 8080  use/check a non-default local port (also opens the app on it)
+#   dsh-gui --remote sgdesk --port 8080
+#                        tunnel local 8080 -> 127.0.0.1:8080 on sgdesk via
+#                        `ssh -o ExitOnForwardFailure=yes -N -L ...` and open
+#                        the app on http://127.0.0.1:8080
+#   dsh-gui --remote user@host
+#                        same, with an explicit remote user (default: $USER)
+#   dsh-gui ps           list running dsh processes (and dsh-gui ssh tunnels)
+#   dsh-gui kill         list them, then pick what to kill interactively
+#   dsh-gui kill all     kill every listed process (asks for confirmation)
+#   dsh-gui kill PID...  kill the given PID(s)
+#   dsh-gui help         show this help
+#
+# Environment:
+#   DSH_CMD            command that launches dsh (default: `dsh` if found on
+#                      PATH, else `npx -y @deepseek-ai/dsh`)
+#   DSH_GUI_PORT       listen port to use/check (default: 3080)
+#   DSH_GUI_TIMEOUT    seconds to wait for service/tunnel to come up (default: 60)
+#   DSH_PROC_PATTERN   egrep pattern matching dsh process command lines
+#   DSH_TUNNEL_PATTERN egrep pattern matching dsh-gui ssh tunnels
+#   DSH_HOME           dsh home dir, for log files (default: ~/.dsh)
+set -u
+
+PORT="${DSH_GUI_PORT:-3080}"
+HOST="127.0.0.1"
+URL="http://$HOST:$PORT"
+DSH_HOME_DIR="${DSH_HOME:-$HOME/.dsh}"
+LOG="$DSH_HOME_DIR/dsh-web.log"
+APP="$HOME/Applications/Chrome Apps.localized/DeepSeek Harness.app"
+TIMEOUT="${DSH_GUI_TIMEOUT:-60}"
+REMOTE_TARGET=""
+# Matches npx/npm-exec launches (argv contains the package name) as well as a
+# plain/global `dsh web` / `dsh --profile ...` launch.
+PROC_PATTERN="${DSH_PROC_PATTERN:-@deepseek-ai/dsh|(^|[/ ])dsh (web|--profile)}"
+# Matches the ssh -N -L forwarders this script starts (best effort for any
+# compatible tunnel started the same way).
+TUNNEL_PATTERN="${DSH_TUNNEL_PATTERN:-(^|[/ ])ssh .*-N.*-L [0-9]+:127\.0\.0\.1:[0-9]+}"
+
+is_up() {
+    curl -fsS -o /dev/null --max-time 2 "$URL/" 2>/dev/null
+}
+
+# Pick the command that launches dsh. Shell aliases are invisible to scripts,
+# so prefer (1) an explicit DSH_CMD override, (2) a real `dsh` on PATH, and
+# (3) npx. `-y` keeps npx from stalling on an "Ok to proceed?" prompt.
+resolve_dsh_cmd() {
+    if [ -n "${DSH_CMD:-}" ]; then return 0; fi
+    if command -v dsh >/dev/null 2>&1; then DSH_CMD="dsh"; return 0; fi
+    if command -v npx >/dev/null 2>&1; then DSH_CMD="npx -y @deepseek-ai/dsh"; return 0; fi
+    return 1
+}
+
+ps_snapshot() {
+    ps -axo pid=,command= 2>/dev/null
+}
+
+# Print PIDs whose command line matches an ERE. Snapshot first, filter after:
+# pgrep is unreliable for title-rewriting processes (npm/node), and this way
+# the filter's own argv never appears in the snapshot.
+pids_matching() {
+    printf '%s\n' "$1" | awk -v self="$$" -v pat="$2" '
+        $1 == self { next }
+        {
+            line = $0
+            sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "", line)
+            if (line ~ pat) print $1
+        }' | sort -n
+}
+
+all_managed_pids() {
+    snapshot=$(ps_snapshot)
+    {
+        pids_matching "$snapshot" "$PROC_PATTERN"
+        pids_matching "$snapshot" "$TUNNEL_PATTERN"
+    } | sort -n | uniq
+}
+
+gui_listener_pids() {
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null || true
+}
+
+list_procs() {
+    listeners=" $(gui_listener_pids | tr '\n' ' ') "
+    snapshot=$(ps_snapshot)
+    found=0
+    printf '%-8s %-12s %s\n' "PID" "ELAPSED" "COMMAND"
+    for pid in $(pids_matching "$snapshot" "$PROC_PATTERN") $(pids_matching "$snapshot" "$TUNNEL_PATTERN"); do
+        cmd=$(ps -wwp "$pid" -o command= 2>/dev/null) || continue
+        found=1
+        elapsed=$(ps -p "$pid" -o etime= 2>/dev/null | tr -d ' ')
+        note=""
+        case "$listeners" in *" $pid "*) note="   <- serving $URL";; esac
+        printf '%-8s %-12s %s%s\n' "$pid" "$elapsed" "$(printf '%s' "$cmd" | cut -c1-100)" "$note"
+    done
+    [ "$found" -eq 1 ]
+}
+
+kill_pid() {
+    pid=$1
+    if ! kill -0 "$pid" 2>/dev/null; then
+        echo "dsh-gui: no such process: $pid" >&2
+        return 1
+    fi
+    kill -TERM "$pid" 2>/dev/null
+    i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$((i + 1))
+        [ "$i" -ge 10 ] && break
+        sleep 0.5
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        kill -KILL "$pid" 2>/dev/null
+        echo "  killed $pid (SIGKILL after TERM timeout)"
+    else
+        echo "  killed $pid"
+    fi
+}
+
+cmd_ps() {
+    if ! list_procs; then
+        echo "dsh-gui: no dsh processes running"
+    fi
+}
+
+cmd_kill() {
+    pids=$(all_managed_pids)
+    if [ -z "$pids" ]; then
+        echo "dsh-gui: no dsh processes running"
+        return 0
+    fi
+    if [ "$#" -eq 0 ]; then
+        list_procs
+        printf 'Kill which? Enter PID(s), "all", or "q" to quit: '
+        read -r choice || choice=q
+        case "$choice" in
+            q|Q|"") echo "dsh-gui: nothing killed"; return 0;;
+            all|ALL) set -- $pids;;
+            *) set -- $choice;;
+        esac
+    elif [ "$1" = "all" ]; then
+        set -- $pids
+        echo "About to kill:"
+        list_procs
+        printf 'Kill all %s dsh process(es)? [y/N] ' "$#"
+        read -r yn || yn=n
+        case "$yn" in
+            y|Y|yes|YES) ;;
+            *) echo "dsh-gui: nothing killed"; return 0;;
+        esac
+    fi
+    listeners=" $(gui_listener_pids | tr '\n' ' ') "
+    for pid in "$@"; do
+        case "$listeners" in
+            *" $pid "*) echo "dsh-gui: warning: $pid is serving $URL — killing it disconnects any live session on it";;
+        esac
+    done
+    for pid in "$@"; do
+        kill_pid "$pid"
+    done
+}
+
+# Open the given URL as an app window. The installed Chrome app has one URL
+# baked in; for exactly that URL open the .app itself, otherwise use Chrome's
+# --app mode (or the default browser as a last resort).
+open_app_for_url() {
+    url=$1
+    if [ -d "$APP" ]; then
+        baked=$(defaults read "$APP/Contents/Info.plist" CrAppModeShortcutURL 2>/dev/null || true)
+        baked=${baked%/}
+        if [ -n "$baked" ] && [ "$baked" = "$url" ]; then
+            open "$APP"
+            echo "dsh-gui: opened DeepSeek Harness app"
+            return 0
+        fi
+    fi
+    if open -Ra "Google Chrome" 2>/dev/null; then
+        open -na "Google Chrome" --args --app="$url"
+        echo "dsh-gui: opened $url in a Chrome app window"
+    else
+        open "$url"
+        echo "dsh-gui: opened $url in the default browser"
+    fi
+}
+
+cmd_launch() {
+    if is_up; then
+        echo "dsh-gui: dsh web already running at $URL"
+    else
+        if ! resolve_dsh_cmd; then
+            echo "dsh-gui: no way to launch dsh — put 'dsh' on PATH or set DSH_CMD" >&2
+            exit 127
+        fi
+        mkdir -p "$DSH_HOME_DIR"
+        echo "dsh-gui: starting '$DSH_CMD web' on $URL (log: $LOG)"
+        # DSH_CMD may be multiword (e.g. `npx -y @deepseek-ai/dsh`).
+        # shellcheck disable=SC2086
+        nohup $DSH_CMD web --no-open --port "$PORT" "$@" >>"$LOG" 2>&1 &
+        attempts=$((TIMEOUT * 2))
+        i=0
+        while ! is_up; do
+            i=$((i + 1))
+            if [ "$i" -ge "$attempts" ]; then
+                echo "dsh-gui: service did not come up within ${TIMEOUT}s — see $LOG" >&2
+                exit 1
+            fi
+            sleep 0.5
+        done
+        echo "dsh-gui: dsh web is up at $URL"
+    fi
+    open_app_for_url "$URL"
+}
+
+# PIDs of ssh tunnels that forward $PORT and target $1 (literal match).
+matching_tunnel_pids() {
+    dest=$1
+    ps_snapshot | awk -v self="$$" -v port="$PORT" -v dest="$dest" '
+        $1 == self { next }
+        {
+            line = $0
+            sub(/^[[:space:]]*[0-9]+[[:space:]]+/, "", line)
+            if (line ~ ("(^|[/ ])ssh .*-L " port ":127\\.0\\.0\\.1:" port) && index(line, dest)) print $1
+        }' | sort -n
+}
+
+cmd_remote() {
+    if ! command -v ssh >/dev/null 2>&1; then
+        echo "dsh-gui: ssh not found on PATH" >&2
+        exit 127
+    fi
+    case "$REMOTE_TARGET" in
+        *@*) ssh_dest="$REMOTE_TARGET";;
+        *) ssh_dest="$USER@$REMOTE_TARGET";;
+    esac
+
+    listener=$(gui_listener_pids)
+    if [ -n "$listener" ]; then
+        ours=$(matching_tunnel_pids "$ssh_dest")
+        if [ -n "$ours" ]; then
+            echo "dsh-gui: tunnel to $ssh_dest already up at $URL (PID: $(echo $ours | tr '\n' ' '))"
+            open_app_for_url "$URL"
+            return 0
+        fi
+        echo "dsh-gui: $HOST:$PORT is already in use by PID(s) $(echo $listener | tr '\n' ' ')— not a dsh-gui tunnel to $ssh_dest" >&2
+        exit 1
+    fi
+
+    safe=$(printf '%s' "$REMOTE_TARGET" | tr -c 'A-Za-z0-9._@-' '_')
+    tlog="$DSH_HOME_DIR/dsh-tunnel-$safe.log"
+    mkdir -p "$DSH_HOME_DIR"
+    echo "dsh-gui: opening tunnel $ssh_dest ($PORT -> 127.0.0.1:$PORT; log: $tlog)"
+    nohup ssh -o ExitOnForwardFailure=yes -N -L "$PORT:127.0.0.1:$PORT" "$ssh_dest" >>"$tlog" 2>&1 &
+    tpid=$!
+    attempts=$((TIMEOUT * 2))
+    i=0
+    while :; do
+        # Any HTTP response means the tunnel + remote service are reachable.
+        if curl -s -o /dev/null --max-time 2 "$URL/"; then break; fi
+        if ! kill -0 "$tpid" 2>/dev/null; then
+            echo "dsh-gui: tunnel process exited early — recent log:" >&2
+            tail -n 5 "$tlog" >&2 2>/dev/null
+            exit 1
+        fi
+        i=$((i + 1))
+        if [ "$i" -ge "$attempts" ]; then
+            echo "dsh-gui: tunnel did not become ready within ${TIMEOUT}s — see $tlog (is dsh web running on $ssh_dest port $PORT?)" >&2
+            exit 1
+        fi
+        sleep 0.5
+    done
+    echo "dsh-gui: tunnel ready at $URL"
+    open_app_for_url "$URL"
+}
+
+cmd_start() {
+    PASSTHRU=""
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --remote)
+                [ "$#" -ge 2 ] || { echo "dsh-gui: --remote needs a target (host or user@host)" >&2; exit 2; }
+                REMOTE_TARGET="$2"; shift;;
+            --remote=*) REMOTE_TARGET="${1#--remote=}";;
+            --port)
+                [ "$#" -ge 2 ] || { echo "dsh-gui: --port needs a value" >&2; exit 2; }
+                PORT="$2"; shift;;
+            --port=*) PORT="${1#--port=}";;
+            *) PASSTHRU="$PASSTHRU $1";;
+        esac
+        shift
+    done
+    case "$PORT" in
+        ""|*[!0-9]*) echo "dsh-gui: invalid --port: $PORT" >&2; exit 2;;
+    esac
+    URL="http://$HOST:$PORT"
+    if [ -n "$REMOTE_TARGET" ]; then
+        cmd_remote
+    else
+        # shellcheck disable=SC2086
+        cmd_launch $PASSTHRU
+    fi
+}
+
+case "${1:-}" in
+    ps|list)
+        cmd_ps
+        exit 0
+        ;;
+    kill)
+        shift
+        cmd_kill "$@"
+        exit $?
+        ;;
+    help|-h|--help)
+        awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
+        exit 0
+        ;;
+    *)
+        cmd_start "$@"
+        ;;
+esac
