@@ -165,23 +165,43 @@ cmd_kill() {
     done
 }
 
-# Open the given URL as an app window. The installed Chrome app has one URL
-# baked in; for exactly that URL open the .app itself, otherwise use Chrome's
-# --app mode (or the default browser as a last resort).
+# Print the path of an installed Chrome app whose baked-in URL matches $1.
+# Chrome keys an app window's identity to its registered app, and an app is
+# bound to one URL — so the way to get a proper app tile (icon, Dock,
+# Cmd-Tab, multi-window grouping) for a given URL is to have that URL
+# installed as a Chrome app ("Install page as app…").
+find_installed_app_for_url() {
+    url=${1%/}
+    for dir in "$HOME/Applications/Chrome Apps.localized" "/Applications/Chrome Apps.localized"; do
+        [ -d "$dir" ] || continue
+        for app in "$dir"/*.app; do
+            [ -d "$app" ] || continue
+            baked=$(defaults read "$app/Contents/Info.plist" CrAppModeShortcutURL 2>/dev/null || true)
+            [ -n "$baked" ] || continue
+            if [ "${baked%/}" = "$url" ]; then
+                printf '%s\n' "$app"
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
+# Open the given URL as an app window: prefer an installed Chrome app whose
+# URL matches (the DeepSeek Harness app itself, or one the user installed for
+# a remote/tunneled URL); otherwise fall back to Chrome's --app mode.
 open_app_for_url() {
     url=$1
-    if [ -d "$APP" ]; then
-        baked=$(defaults read "$APP/Contents/Info.plist" CrAppModeShortcutURL 2>/dev/null || true)
-        baked=${baked%/}
-        if [ -n "$baked" ] && [ "$baked" = "$url" ]; then
-            open "$APP"
-            echo "dsh-gui: opened DeepSeek Harness app"
-            return 0
-        fi
+    app_path=$(find_installed_app_for_url "$url")
+    if [ -n "$app_path" ]; then
+        open "$app_path"
+        echo "dsh-gui: opened $(basename "$app_path" .app)"
+        return 0
     fi
     if open -Ra "Google Chrome" 2>/dev/null; then
         open -na "Google Chrome" --args --app="$url"
         echo "dsh-gui: opened $url in a Chrome app window"
+        echo "dsh-gui: tip: Chrome ties an app's identity to one URL; install $url as a Chrome app (Chrome menu -> Install page as app…) and dsh-gui will open that app instead"
     else
         open "$url"
         echo "dsh-gui: opened $url in the default browser"
