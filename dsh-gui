@@ -1,8 +1,8 @@
 #!/bin/sh
-# dsh-gui — manage the DeepSeek Harness web service, tunnels to it, and the Chrome app.
+# dsh-gui — manage the DeepSeek Harness web service, tunnels to it, and the Edge app window.
 #
 # Usage:
-#   dsh-gui              start the web service if needed, then open the Chrome app
+#   dsh-gui              start the web service if needed, then open the app window
 #   dsh-gui [flags]      unknown flags are forwarded to `dsh web` on a cold start
 #   dsh-gui --port 8080  use/check a non-default local port (also opens the app on it)
 #   dsh-gui --remote sgdesk --port 8080
@@ -25,6 +25,7 @@
 #   DSH_PROC_PATTERN   egrep pattern matching dsh process command lines
 #   DSH_TUNNEL_PATTERN egrep pattern matching dsh-gui ssh tunnels
 #   DSH_HOME           dsh home dir, for log files (default: ~/.dsh)
+#   DSH_BROWSER_APP    browser app used for app windows (default: Microsoft Edge)
 set -u
 
 PORT="${DSH_GUI_PORT:-3080}"
@@ -32,7 +33,7 @@ HOST="127.0.0.1"
 URL="http://$HOST:$PORT"
 DSH_HOME_DIR="${DSH_HOME:-$HOME/.dsh}"
 LOG="$DSH_HOME_DIR/dsh-web.log"
-APP="$HOME/Applications/Chrome Apps.localized/DeepSeek Harness.app"
+BROWSER_APP="${DSH_BROWSER_APP:-Microsoft Edge}"
 TIMEOUT="${DSH_GUI_TIMEOUT:-60}"
 REMOTE_TARGET=""
 # Matches npx/npm-exec launches (argv contains the package name) as well as a
@@ -165,14 +166,14 @@ cmd_kill() {
     done
 }
 
-# Print the path of an installed Chrome app whose baked-in URL matches $1.
-# Chrome keys an app window's identity to its registered app, and an app is
+# Print the path of an installed Edge app whose baked-in URL matches $1.
+# Edge keys an app window's identity to its registered app, and an app is
 # bound to one URL — so the way to get a proper app tile (icon, Dock,
 # Cmd-Tab, multi-window grouping) for a given URL is to have that URL
-# installed as a Chrome app ("Install page as app…").
+# installed as an Edge app ("Apps > Install this site as an app…").
 find_installed_app_for_url() {
     url=${1%/}
-    for dir in "$HOME/Applications/Chrome Apps.localized" "/Applications/Chrome Apps.localized"; do
+    for dir in "$HOME/Applications/Edge Apps.localized" "/Applications/Edge Apps.localized"; do
         [ -d "$dir" ] || continue
         for app in "$dir"/*.app; do
             [ -d "$app" ] || continue
@@ -187,9 +188,9 @@ find_installed_app_for_url() {
     return 1
 }
 
-# Open the given URL as an app window: prefer an installed Chrome app whose
+# Open the given URL as an app window: prefer an installed Edge app whose
 # URL matches (the DeepSeek Harness app itself, or one the user installed for
-# a remote/tunneled URL); otherwise fall back to Chrome's --app mode.
+# a remote/tunneled URL); otherwise fall back to Edge's --app mode.
 open_app_for_url() {
     url=$1
     app_path=$(find_installed_app_for_url "$url")
@@ -198,9 +199,8 @@ open_app_for_url() {
         echo "dsh-gui: opened $(basename "$app_path" .app)"
         return 0
     fi
-    if open -Ra "Google Chrome" 2>/dev/null; then
-        open -na "Google Chrome" --args --app="$url"
-        echo "dsh-gui: opened $url in a Chrome app window"
+    if open -na "$BROWSER_APP" --args --app="$url" 2>/dev/null; then
+        echo "dsh-gui: opened $url in an $BROWSER_APP app window"
     else
         open "$url"
         echo "dsh-gui: opened $url in the default browser"

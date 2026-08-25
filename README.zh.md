@@ -1,13 +1,13 @@
 # dsh-gui
 
-一个用于 macOS 的 POSIX shell 小工具，用来管理 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) 的 Web 界面：按需启动 `dsh web` 服务、打开 *DeepSeek Harness* Chrome 应用，并支持通过 SSH 隧道连接远程实例。
+一个用于 macOS 的 POSIX shell 小工具，用来管理 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) 的 Web 界面：按需启动 `dsh web` 服务、在 Microsoft Edge 中打开 *DeepSeek Harness* 应用窗口，并支持通过 SSH 隧道连接远程实例。
 
 ## 依赖
 
 - macOS（使用 `open`、`defaults`、`lsof`）
 - `curl`、`ssh`
 - DeepSeek Harness：`PATH` 中有 `dsh` 命令，或可通过 `npx` 运行（`@deepseek-ai/dsh`）
-- Google Chrome（用于应用窗口和/或已安装的 *DeepSeek Harness* Chrome 应用）
+- Microsoft Edge（用于应用窗口和/或已安装的 *DeepSeek Harness* Edge 应用）
 
 ## 安装
 
@@ -20,7 +20,7 @@ ln -s "$PWD/dsh-gui/dsh-gui" ~/.local/bin/dsh-gui   # 任何在 PATH 中的目�
 
 | 命令 | 作用 |
 | --- | --- |
-| `dsh-gui` | 若 `dsh web` 未运行则启动（默认端口 3080），然后打开 Chrome 应用 |
+| `dsh-gui` | 若 `dsh web` 未运行则启动（默认端口 3080），然后打开应用窗口 |
 | `dsh-gui --port 8080` | 同上，但使用/检查非默认本地端口 |
 | `dsh-gui --remote sgdesk --port 8080` | 通过 `ssh -o ExitOnForwardFailure=yes -N -L …` 把本地 `8080` 隧道到 `sgdesk` 的 `127.0.0.1:8080`，等待 HTTP 就绪后打开应用 |
 | `dsh-gui --remote user@host` | 同上，显式指定远程用户（默认：`$USER`） |
@@ -36,8 +36,16 @@ ln -s "$PWD/dsh-gui/dsh-gui" ~/.local/bin/dsh-gui   # 任何在 PATH 中的目�
 
 - **服务**：以 `nohup` 后台启动，日志写入 `~/.dsh/dsh-web.log`。
 - **隧道**：日志写入 `~/.dsh/dsh-tunnel-<target>.log`。若本地端口已有监听：匹配的已有隧道会被*复用*；其他占用者会被提示，脚本拒绝覆盖。
-- **应用窗口**：Chrome 把一个应用的身份绑定到唯一的 URL。dsh-gui 会扫描已安装的 Chrome 应用（`Chrome Apps.localized`），找到 URL 与目标一致的应用并打开它（本地 URL 对应的 *DeepSeek Harness* 就是这样打开的）。其他 URL（如远程/隧道地址）以 Chrome `--app` 窗口打开（沉浸式窗口，不做独立应用注册）。若你日后手动把某个 URL 安装为 Chrome 应用，dsh-gui 会自动优先使用已安装的应用。
+- **应用窗口**：Edge 把一个应用的身份绑定到唯一的 URL。dsh-gui 会扫描已安装的 Edge 应用（`Edge Apps.localized`），找到 URL 与目标一致的应用并打开它（本地 URL 对应的 *DeepSeek Harness* 应用就是这样打开的）。其他 URL（如远程/隧道地址）以 Edge `--app` 窗口打开（沉浸式窗口，不做独立应用注册）。若你日后手动把某个 URL 安装为 Edge 应用，dsh-gui 会自动优先使用已安装的应用。安装方法见 [安装为 Edge 应用（可选）](#安装为-edge-应用可选)。
 - **结束进程**：先发 `SIGTERM`，最多等 5 秒，仍存活则升级为 `SIGKILL`。结束正在服务 GUI 端口的进程会断开其上的活动会话，脚本会事先警告。
+
+## 安装为 Edge 应用（可选）
+
+把 GUI 跑起来后（先执行一次 `dsh-gui`），可以把它安装为 Edge 应用，获得独立 Dock 图标和窗口；之后 dsh-gui 会自动优先打开这个已安装应用。在 Edge 的**普通标签页**（dsh-gui 打开的 `--app` 窗口菜单是精简版，没有该选项）中打开 `http://127.0.0.1:3080`，进入：
+
+`⋯` → **更多工具** → **应用** → **将此站点作为应用安装**（部分版本中「应用」直接位于 `⋯` 菜单里）。
+
+为应用命名（如 *DeepSeek Harness*）并点击 **安装**。应用与具体 URL 绑定（含端口），使用 `--port` 时每个端口需各装一个。若 `dsh web` 由 launchd 自启保活，安装后可直接从 Dock 打开应用，无需再运行 dsh-gui。完整步骤见 [TROUBLESHOOTING.md](TROUBLESHOOTING.md)。
 
 ## 环境变量
 
@@ -49,6 +57,7 @@ ln -s "$PWD/dsh-gui/dsh-gui" ~/.local/bin/dsh-gui   # 任何在 PATH 中的目�
 | `DSH_PROC_PATTERN` | 内置 | 匹配 dsh 进程命令行的 ERE |
 | `DSH_TUNNEL_PATTERN` | 内置 | 匹配 dsh-gui ssh 隧道的 ERE |
 | `DSH_HOME` | `~/.dsh` | 日志文件写入位置 |
+| `DSH_BROWSER_APP` | `Microsoft Edge` | 用于应用窗口的浏览器应用（`open -a` 接受的名字或路径，例如 `Google Chrome`） |
 
 ## 许可证
 
