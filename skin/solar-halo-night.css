@@ -1,0 +1,115 @@
+/* Solar Halo (photo bg) — DeepSeek Harness 皮肤 (同 user.css, 去掉 usercss 头) */
+
+/* ================= 背景: 照片(本地网站) + 暗色罩 ================= */
+html { background: #14100e; }
+body {
+  background-image:
+    linear-gradient(rgba(20,16,14,0.45), rgba(20,16,14,0.62)),
+    url("http://127.0.0.1:8899/Solar_Halo_Painting.jpeg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* ================= 令牌：取自照片真实色 ================= */
+:root, body[data-ds-dark-theme] {
+  --dsw-alias-bg-base: rgba(39,36,34,0.80);          /* 半透明暗暖底, 透出背景渐变 */
+  --dsw-alias-bg-layer-1: #2e2a29;
+  --dsw-alias-bg-layer-2: #383231;
+  --dsw-alias-bg-layer-3: #433c39;
+  --dsw-alias-bg-overlay: #383231;
+  --dsw-alias-bg-module-platform: #383231;
+  --dsw-alias-bg-mask-1: rgba(12,10,9,0.55);
+  --dsw-alias-bg-mask-2: rgba(12,10,9,0.30);
+  --dsw-alias-bg-mask-3: rgba(12,10,9,0.52);
+  --dsw-alias-bg-mask-drop: rgba(46,42,40,0.55);
+  --dsw-alias-bg-skeleton: rgba(224,218,225,0.06);
+
+  --dsw-alias-label-primary: #e2dbe4;               /* 淡紫白(亮部天空) */
+  --dsw-alias-label-primary-bluish: #e8e1ea;
+  --dsw-alias-label-secondary: #bcb0ab;             /* 暖灰 */
+  --dsw-alias-label-tertiary: #9e9189;
+  --dsw-alias-label-caption: #7b6f67;
+  --dsw-alias-label-dimmed: #524b46;
+  --dsw-alias-label-primary-inverted: #201c1b;
+  --dsw-alias-label-primary-foreground: #14100e;
+
+  --dsw-alias-border-l1: rgba(224,218,225,0.07);
+  --dsw-alias-border-l2: rgba(224,218,225,0.13);
+  --dsw-alias-border-l3: rgba(224,218,225,0.21);
+  --dsw-alias-border-l4: rgba(224,218,225,0.30);
+  --dsw-alias-border-inverted: rgba(224,218,225,0.07);
+  --dsw-alias-border-inverted2: rgba(224,218,225,0.10);
+
+  /* 强调: 淡紫(光弧) + 暖金(日轮) 双点缀 */
+  --dsw-alias-brand-primary: #cbbfe3;
+  --dsw-alias-brand-text: #e6dff3;
+  --dsw-alias-button-primary-fill: #cbbfe3;
+  --dsw-alias-button-primary-hover: #dbd2ef;
+  --dsw-alias-button-primary-dimmed: #4a4158;
+  --dsw-alias-state-business-primary: #b7a5d6;
+  --dsw-alias-state-business-tertiary: #3a3242;
+  --dsw-alias-button-info-fill: #a894cf;
+  --dsw-alias-button-info-hover: #b7a5d6;
+  --dsw-alias-interactive-bg-hover: rgba(203,191,227,0.12);
+  --dsw-alias-interactive-bg-hover-solid: #35303c;
+  --dsw-alias-interactive-bg-hover-accent: rgba(203,191,227,0.18);
+  --dsw-alias-interactive-bg-active: rgba(203,191,227,0.26);
+
+  --dsw-alias-state-error-primary: #b97a66;         /* 陶土红(屋顶) */
+  --dsw-alias-state-error-secondary: #a96f5c;
+  --dsw-alias-state-success-primary: #9fb893;       /* 灰绿(植被) */
+  --dsw-alias-state-success-secondary: #b0c7a2;
+  --dsw-alias-state-success-tertiary: #2a2f26;
+  --dsw-alias-state-warn-label: #d1b188;            /* 日轮金 */
+  --dsw-alias-state-warn-primary: #d9bd94;
+  --dsw-alias-state-warn-secondary: #d1b188;
+  --dsw-alias-state-warn-tertiary: #332a1e;
+
+  --dsw-alias-button-elevated-fill: #3a332f;
+  --dsw-alias-button-floating-fill: #2b2725;
+  --dsw-alias-button-floating-hover: #3a332f;
+  --dsw-alias-button-ghost-active-fill: #3c3430;
+  --dsw-alias-button-ghost-active-hover: #463d38;
+  --dsw-alias-button-ghost-active-border: #57503f;
+  --dsw-alias-button-contrast-fill: #201c1b;
+  --dsw-alias-button-tool-bar-fill: rgba(84,85,87,0.40);
+  --dsw-alias-button-tool-bar-hover: rgba(84,85,87,0.52);
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(31,31,31,0.40);
+
+  --dsw-alias-markdown-code-block: #14100e;
+  --dsw-alias-markdown-code-block-banner: #241f1e;
+  --dsw-alias-markdown-inline-code: #383231;
+  --dsw-alias-markdown-code-segment-selected: #433c39;
+  --dsw-alias-markdown-code-segment-unselected: #14100e;
+  --dsw-alias-markdown-citation: #3a332f;
+  --dsw-alias-markdown-tag: #383231;
+  --dsw-alias-markdown-placeholder: #383231;
+  --dsw-alias-toast-bg: #3a332f;
+  --dsw-alias-tooltip-bg: #3a332f;
+
+  --dsw-alias-scrollbar-bg-l1: #463e3a;
+  --dsw-alias-scrollbar-bg-l2: #564c46;
+  --dsw-alias-scrollbar-hover-l1: #564c46;
+  --dsw-alias-scrollbar-hover-l2: #665a51;
+}
+
+/* ================= 光晕渐变(思考中) ================= */
+:root {
+  --dsw-linear-gradient-think: linear-gradient(180deg, #cbbfe3 18%, #d1b188 55%, rgba(209,177,136,0) 100%);
+}
+
+/* ================= 底层静态品牌色: 换成暖紫, 去掉原蓝色 ================= */
+:root, body[data-ds-dark-theme] {
+  --dsw-static-deepseek-50:  #efeaf5;
+  --dsw-static-deepseek-100: #e3dcef;
+  --dsw-static-deepseek-200: #cfc3e3;
+  --dsw-static-deepseek-300: #cbbfe3;
+  --dsw-static-deepseek-400: #a894cf;
+  --dsw-static-deepseek-450: #9f8ac9;
+  --dsw-static-deepseek-500: #8f7cbb;
+  --dsw-static-deepseek-600: #6a5b8f;
+  --dsw-static-deepseek-700-delete: #524566;
+  --dsw-static-deepseek-800: #382f44;
+  --dsw-static-deepseek-900: #2b2434;
+}
