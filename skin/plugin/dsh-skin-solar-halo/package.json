@@ -1,0 +1,18 @@
+{
+  "name": "dsh-skin-solar-halo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DeepSeek Harness 皮肤插件「日晕·幽夜」: 以《Solar Halo》画作为背景底片, 界面取画作真实配色。",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "main": "lib/index.js"
+}
