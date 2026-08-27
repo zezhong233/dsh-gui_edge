@@ -5,7 +5,7 @@ html { background: #14100e; }
 body {
   background-image:
     linear-gradient(rgba(20,16,14,0.45), rgba(20,16,14,0.62)),
-    url("http://127.0.0.1:8899/Solar_Halo_Painting.jpeg");
+    url("https://raw.githubusercontent.com/zezhong233/dsh-gui_edge/main/skin_figures/Solar_Halo_Painting.jpeg");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
