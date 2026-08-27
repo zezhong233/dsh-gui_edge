@@ -1,26 +1,28 @@
 /* ==UserStyle==
-@name         Solar Halo (photo bg) — DeepSeek Harness
+@name         Solar Halo Night (vivid) — DeepSeek Harness
 @namespace    https://github.com/zezhong233/dsh-gui_edge
-@version      3.0.0
+@version      2.1.0
 @description  以《Solar Halo》画作真实配色为基调, 背景用纯CSS渐变复刻画面色调(淡紫天空→暖灰→深褐森林), 不用图片内嵌以避免扩展解析崩溃。
 @author       zezhong
 @match        http://127.0.0.1:3080/*
 ==/UserStyle== */
 
-/* ================= 背景: 照片(本地网站) + 暗色罩 ================= */
+/* ================= 背景: 纯色紫夜 (无照片) ================= */
 html { background: #14100e; }
 body {
+  background-color: #14100e;
   background-image:
-    linear-gradient(rgba(20,16,14,0.45), rgba(20,16,14,0.62)),
-    url("https://raw.githubusercontent.com/zezhong233/dsh-gui_edge/main/skin_figures/Solar_Halo_Painting.jpeg");
+    /* 顶部淡紫光晕(天空/光弧) */
+    radial-gradient(120% 55% at 50% 0%, rgba(224,218,225,0.12), rgba(224,218,225,0) 60%),
+    /* 中部暖灰(地平线/小镇) */
+    linear-gradient(180deg, rgba(156,145,137,0.10), rgba(82,75,70,0.06) 42%, rgba(20,16,14,0) 100%);
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
 }
 
 /* ================= 令牌：取自照片真实色 ================= */
 :root, body[data-ds-dark-theme] {
-  --dsw-alias-bg-base: rgba(39,36,34,0.80);          /* 半透明暗暖底, 透出背景渐变 */
+  --dsw-alias-bg-base: #18131f;          /* 半透明暗暖底, 透出背景渐变 */
   --dsw-alias-bg-layer-1: #2e2a29;
   --dsw-alias-bg-layer-2: #383231;
   --dsw-alias-bg-layer-3: #433c39;
